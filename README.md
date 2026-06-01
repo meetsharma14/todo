@@ -2,7 +2,7 @@
 
 A simple and interactive To-Do List application built with Python and Streamlit.
 
-🔗 **Live Demo:**  [[To-Do List · Streamlit](https://aegqkbatupkj8gec5yurqn.streamlit.app/) ](https://securetodolistapp.streamlit.app/) 
+🔗 **Live Demo:**  [[To-Do List · Streamlit](https://securetodolistapp.streamlit.app/)  ]
 
 ## Features
 
