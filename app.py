@@ -1,410 +1,454 @@
 import streamlit as st
-import sqlite3
-import bcrypt
+from datetime import datetime, date
 
-# ---------------- PAGE CONFIG ---------------- #
+# ================= PAGE =================
 
 st.set_page_config(
-    page_title="Secure To-Do App",
-    page_icon="📝"
+    page_title="Todo Pro",
+    page_icon="📝",
+    layout="wide"
 )
 
-# ---------------- DATABASE ---------------- #
-
-conn = sqlite3.connect(
-    "todo.db",
-    check_same_thread=False
-)
-
-cursor = conn.cursor()
-
-# Create users table
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS users(
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username TEXT UNIQUE,
-    password BLOB
-)
-""")
-
-# Create tasks table
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS tasks(
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER,
-    task TEXT,
-    status TEXT
-)
-""")
-
-conn.commit()
-
-
-# ---------------- PASSWORD FUNCTIONS ---------------- #
-
-def hash_password(password):
-
-    salt = bcrypt.gensalt()
-
-    hashed_password = bcrypt.hashpw(
-        password.encode(),
-        salt
-    )
-
-    return hashed_password
-
-
-def verify_password(
-        entered_password,
-        stored_password
-):
-
-    return bcrypt.checkpw(
-        entered_password.encode(),
-        stored_password
-    )
-
-
-# ---------------- USER FUNCTIONS ---------------- #
-
-def register_user(
-        username,
-        password
-):
-
-    try:
-
-        hashed = hash_password(password)
-
-        cursor.execute(
-            """
-            INSERT INTO users
-            (username,password)
-            VALUES (?,?)
-            """,
-            (
-                username,
-                hashed
-            )
-        )
-
-        conn.commit()
-
-        return True
-
-    except:
-
-        return False
-
-
-def login_user(
-        username,
-        password
-):
-
-    cursor.execute(
-        """
-        SELECT id,password
-        FROM users
-        WHERE username=?
-        """,
-        (username,)
-    )
-
-    user = cursor.fetchone()
-
-    if user:
-
-        user_id = user[0]
-        stored_password = user[1]
-
-        if verify_password(
-                password,
-                stored_password
-        ):
-
-            return user_id
-
-    return None
-
-
-# ---------------- TASK FUNCTIONS ---------------- #
-
-def add_task(
-        user_id,
-        task
-):
-
-    cursor.execute(
-        """
-        INSERT INTO tasks
-        (user_id,task,status)
-        VALUES (?,?,?)
-        """,
-        (
-            user_id,
-            task,
-            "Pending"
-        )
-    )
-
-    conn.commit()
-
-
-def get_tasks(user_id):
-
-    cursor.execute(
-        """
-        SELECT id,task,status
-        FROM tasks
-        WHERE user_id=?
-        """,
-        (user_id,)
-    )
-
-    return cursor.fetchall()
-
-
-def toggle_task(
-        task_id,
-        status
-):
-
-    new_status = (
-        "Completed"
-        if status == "Pending"
-        else "Pending"
-    )
-
-    cursor.execute(
-        """
-        UPDATE tasks
-        SET status=?
-        WHERE id=?
-        """,
-        (
-            new_status,
-            task_id
-        )
-    )
-
-    conn.commit()
-
-
-def delete_task(task_id):
-
-    cursor.execute(
-        """
-        DELETE FROM tasks
-        WHERE id=?
-        """,
-        (task_id,)
-    )
-
-    conn.commit()
-
-
-# ---------------- SESSION ---------------- #
+# ================= SESSION =================
 
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 
-if "user_id" not in st.session_state:
-    st.session_state.user_id = None
+if "tasks" not in st.session_state:
+    st.session_state.tasks = []
+
+if "page" not in st.session_state:
+    st.session_state.page = "Inbox"
 
 
-# ---------------- LOGIN / REGISTER PAGE ---------------- #
+# ================= CSS =================
+
+st.markdown("""
+<style>
+
+.stApp{
+background:#f5f6fa;
+}
+
+#MainMenu{
+visibility:hidden;
+}
+
+footer{
+visibility:hidden;
+}
+
+[data-testid="stSidebar"]{
+background:white;
+border-right:1px solid #eaeaea;
+}
+
+.login-card{
+background:white;
+padding:35px;
+border-radius:25px;
+margin-top:60px;
+box-shadow:0px 4px 20px rgba(0,0,0,.08);
+}
+
+.metric{
+background:white;
+padding:20px;
+border-radius:15px;
+text-align:center;
+box-shadow:0px 2px 8px rgba(0,0,0,.05);
+}
+
+.task-card{
+background:white;
+padding:20px;
+border-radius:15px;
+margin-bottom:10px;
+border:1px solid #eee;
+}
+
+.stButton>button{
+width:100%;
+border-radius:10px;
+height:42px;
+}
+
+</style>
+""", unsafe_allow_html=True)
+
+# ================= LOGIN PAGE =================
 
 if not st.session_state.logged_in:
 
-    st.title("🔐 Secure To-Do App")
+    c1,c2,c3=st.columns([1,1.2,1])
 
-    page = st.sidebar.selectbox(
-        "Choose",
-        ["Login", "Register"]
-    )
+    with c2:
 
-    username = st.text_input(
-        "Username"
-    )
+        st.markdown("""
 
-    password = st.text_input(
-        "Password",
-        type="password"
-    )
+        <div class='login-card'>
 
-    if page == "Register":
+        <center>
+        <h1>📝 Todo Pro</h1>
+        <p>Organize work and life</p>
+        </center>
 
-        if st.button("Register"):
+        """, unsafe_allow_html=True)
 
-            if username and password:
+        tab1,tab2=st.tabs(
+            ["Login","Register"]
+        )
 
-                success = register_user(
-                    username,
-                    password
-                )
+        with tab1:
 
-                if success:
+            email=st.text_input(
+                "Email",
+                key="login_email"
+            )
 
-                    st.success(
-                        "Registration successful"
-                    )
+            password=st.text_input(
+                "Password",
+                type="password",
+                key="login_password"
+            )
+
+            if st.button(
+                "Login",
+                key="login_btn"
+            ):
+
+                if email and password:
+
+                    st.session_state.logged_in=True
+                    st.rerun()
 
                 else:
 
                     st.error(
-                        "Username already exists"
+                        "Enter credentials"
                     )
 
-            else:
+        with tab2:
 
-                st.warning(
-                    "Fill all fields"
-                )
-
-    else:
-
-        if st.button("Login"):
-
-            user_id = login_user(
-                username,
-                password
+            username=st.text_input(
+                "Username",
+                key="register_username"
             )
 
-            if user_id:
+            reg_email=st.text_input(
+                "Email",
+                key="register_email"
+            )
 
-                st.session_state.logged_in = True
+            reg_password=st.text_input(
+                "Password",
+                type="password",
+                key="register_password"
+            )
 
-                st.session_state.user_id = user_id
+            confirm=st.text_input(
+                "Confirm Password",
+                type="password",
+                key="confirm_password"
+            )
 
-                st.success(
-                    "Login successful"
-                )
+            if st.button(
+                "Create Account",
+                key="register_btn"
+            ):
 
-                st.rerun()
+                if reg_password!=confirm:
 
-            else:
+                    st.error(
+                        "Passwords do not match"
+                    )
 
-                st.error(
-                    "Invalid username/password"
-                )
+                else:
+
+                    st.success(
+                        "Account created"
+                    )
+
+        st.markdown(
+            "</div>",
+            unsafe_allow_html=True
+        )
 
 
-# ---------------- TODO PAGE ---------------- #
+# ================= DASHBOARD =================
 
 else:
 
-    st.title("📝 My To-Do List")
+    # Sidebar
 
-    if st.button("Logout"):
+    st.sidebar.title(
+        "📝 Todo Pro"
+    )
 
-        st.session_state.logged_in = False
-        st.session_state.user_id = None
+    if st.sidebar.button(
+        "📥 Inbox",
+        use_container_width=True
+    ):
+        st.session_state.page="Inbox"
+
+    if st.sidebar.button(
+        "⭐ Important",
+        use_container_width=True
+    ):
+        st.session_state.page="Important"
+
+    if st.sidebar.button(
+        "📅 Today",
+        use_container_width=True
+    ):
+        st.session_state.page="Today"
+
+    if st.sidebar.button(
+        "📁 Projects",
+        use_container_width=True
+    ):
+        st.session_state.page="Projects"
+
+    st.sidebar.divider()
+
+    if st.sidebar.button(
+        "🚪 Logout",
+        use_container_width=True
+    ):
+        st.session_state.logged_in=False
+        st.rerun()
+
+
+    st.title(
+        st.session_state.page
+    )
+
+
+    # Metrics
+
+    total=len(st.session_state.tasks)
+
+    completed=sum(
+        1 for t in st.session_state.tasks
+        if t["status"]=="Completed"
+    )
+
+    pending=total-completed
+
+
+    a,b,c=st.columns(3)
+
+    with a:
+
+        st.markdown(
+        f"""
+        <div class='metric'>
+        <h1>{total}</h1>
+        Total Tasks
+        </div>
+        """,
+        unsafe_allow_html=True
+        )
+
+    with b:
+
+        st.markdown(
+        f"""
+        <div class='metric'>
+        <h1>{completed}</h1>
+        Completed
+        </div>
+        """,
+        unsafe_allow_html=True
+        )
+
+    with c:
+
+        st.markdown(
+        f"""
+        <div class='metric'>
+        <h1>{pending}</h1>
+        Pending
+        </div>
+        """,
+        unsafe_allow_html=True
+        )
+
+    st.progress(
+        completed/total if total else 0
+    )
+
+    st.divider()
+
+
+    # Add task
+
+    task=st.text_input(
+        "Task Name",
+        key="task"
+    )
+
+    c1,c2,c3=st.columns([3,2,2])
+
+    with c1:
+
+        priority=st.selectbox(
+            "Priority",
+            ["High","Medium","Low"]
+        )
+
+    with c2:
+
+        deadline_date=st.date_input(
+            "Deadline Date",
+            value=date.today()
+        )
+
+    with c3:
+
+        deadline_time=st.time_input(
+            "Deadline Time"
+        )
+
+    if st.button(
+        "Add Task"
+    ):
+
+        current=datetime.now().strftime(
+            "%d-%m-%Y %I:%M %p"
+        )
+
+        deadline=datetime.combine(
+            deadline_date,
+            deadline_time
+        ).strftime(
+            "%d-%m-%Y %I:%M %p"
+        )
+
+        st.session_state.tasks.append({
+
+            "task":task,
+            "priority":priority,
+            "created":current,
+            "deadline":deadline,
+            "status":"Pending"
+
+        })
 
         st.rerun()
 
-    st.write("---")
+    st.divider()
 
-    task = st.text_input(
-        "Enter task"
-    )
 
-    if st.button(
-            "Add Task"
-    ):
+    # Filters
 
-        if task.strip() != "":
+    filtered=[]
 
-            add_task(
-                st.session_state.user_id,
-                task
+    for t in st.session_state.tasks:
+
+        if st.session_state.page=="Inbox":
+
+            filtered.append(t)
+
+        elif (
+            st.session_state.page=="Important"
+            and t["priority"]=="High"
+        ):
+
+            filtered.append(t)
+
+        elif (
+            st.session_state.page=="Today"
+            and t["deadline"][:10]
+            ==
+            datetime.now().strftime(
+                "%d-%m-%Y"
             )
+        ):
 
-            st.success(
-                "Task Added"
-            )
+            filtered.append(t)
 
-            st.rerun()
+        elif (
+            st.session_state.page=="Projects"
+            and t["priority"]!="High"
+        ):
 
-    st.subheader(
-        "Your Tasks"
-    )
+            filtered.append(t)
 
-    tasks = get_tasks(
-        st.session_state.user_id
-    )
 
-    if len(tasks) == 0:
+    # Show Tasks
 
-        st.info(
-            "No tasks available"
+    for i,t in enumerate(filtered):
+
+        c1,c2,c3=st.columns(
+            [8,1,1]
         )
 
-    for task_id, task_text, status in tasks:
+        with c1:
 
-        col1, col2, col3 = st.columns(
-            [5,2,2]
-        )
+            icon={
 
-        with col1:
+                "High":"🔴",
+                "Medium":"🟡",
+                "Low":"🟢"
 
-            if status == "Completed":
+            }[t["priority"]]
 
-                st.markdown(
-                    f"~~{task_text}~~ ✅"
-                )
+            status=(
+                "✅"
+                if t["status"]=="Completed"
+                else "⏳"
+            )
 
-            else:
+            st.markdown(
+            f"""
+            <div class='task-card'>
 
-                st.markdown(
-                    f"{task_text} ⏳"
-                )
+            <b>{icon} {t["task"]}</b>
 
-        with col2:
+            <br><br>
+
+            {status}
+
+            <br><br>
+
+            Created:
+            {t["created"]}
+
+            <br>
+
+            Deadline:
+            {t["deadline"]}
+
+            </div>
+            """,
+            unsafe_allow_html=True
+            )
+
+
+        with c2:
 
             if st.button(
-                    "Toggle",
-                    key=f"toggle{task_id}"
+                "✅",
+                key=f"done{i}"
             ):
 
-                toggle_task(
-                    task_id,
-                    status
+                t["status"]=(
+                    "Completed"
+                    if t["status"]=="Pending"
+                    else "Pending"
                 )
 
                 st.rerun()
 
-        with col3:
+
+        with c3:
 
             if st.button(
-                    "Delete",
-                    key=f"delete{task_id}"
+                "🗑️",
+                key=f"delete{i}"
             ):
 
-                delete_task(
-                    task_id
-                )
+                st.session_state.tasks.remove(t)
 
                 st.rerun()
-
-    # Summary
-
-    completed_count = sum(
-        1 for task in tasks
-        if task[2] == "Completed"
-    )
-
-    pending_count = sum(
-        1 for task in tasks
-        if task[2] == "Pending"
-    )
-
-    st.write("---")
-
-    st.write(
-        f"✅ Completed Tasks: {completed_count}"
-    )
-
-    st.write(
-        f"⏳ Pending Tasks: {pending_count}"
-    )
