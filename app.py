@@ -309,21 +309,21 @@ else:
     # Sidebar
     st.sidebar.title("📝 Todo Pro")
 
-    if st.sidebar.button("📥 Inbox", use_container_width=True):
+    if st.sidebar.button(" Inbox", use_container_width=True):
         st.session_state.page = "Inbox"
 
-    if st.sidebar.button("⭐ Important", use_container_width=True):
+    if st.sidebar.button(" Important", use_container_width=True):
         st.session_state.page = "Important"
 
-    if st.sidebar.button("📅 Today", use_container_width=True):
+    if st.sidebar.button(" Today", use_container_width=True):
         st.session_state.page = "Today"
 
-    if st.sidebar.button("📁 Projects", use_container_width=True):
+    if st.sidebar.button(" Projects", use_container_width=True):
         st.session_state.page = "Projects"
 
     st.sidebar.divider()
 
-    if st.sidebar.button("🚪 Logout", use_container_width=True):
+    if st.sidebar.button(" Logout", use_container_width=True):
         st.session_state.logged_in = False
         st.session_state.user_id = None
         st.rerun()
